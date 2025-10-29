@@ -1,1 +1,6 @@
 data/
+.conda/
+env/
+*.env
+__pycache__/
+.vscode/
