@@ -37,7 +37,7 @@ def load_img_from_folder(folder_path, batch_size = 10):
     return data
 
 
-def detect_edges(img:np.ndarray) -> np.ndarray:
+def detect_edges(img):
     """ detects edges in the input image (img); returns superscored edge map and directional derivatives.
         img can have 1 channel (greyscale) or 3 channels (color)
     """
