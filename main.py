@@ -5,9 +5,11 @@ import cv2
 import numpy as np
 
 
-def load_img(img_path): 
-    """This function serves as a dataloader, loads img from img_path as grayscale"""
-    flag = cv2.IMREAD_GRAYSCALE
+def load_img(img_path, greyscale=True): 
+    """ This function serves as a dataloader, loads img from img_path as grayscale """
+    flag = cv2.IMREAD_ANYCOLOR
+    if greyscale:
+        flag = cv2.IMREAD_GRAYSCALE
     img = cv2.imread(img_path, flag)    # loads img as grayscale, one channel to work with
     
     if img is None: 
@@ -33,6 +35,35 @@ def load_img_from_folder(folder_path, batch_size = 10):
             break
 
     return data
+
+
+def detect_edges(img:np.ndarray) -> np.ndarray:
+    """ detects edges in the input image (img); returns superscored edge map and directional derivatives.
+        img can have 1 channel (greyscale) or 3 channels (color)
+    """
+    # check input dimensions
+    shape = img.shape
+    combine_channels = True     # flag: perform edge combination along channels
+    if len(shape) == 2:     # grey scale
+        combine_channels = False
+        
+    # define derivative filters
+    dx = np.array([[-1, 1]])
+    dy = np.array([[1, -1]]).T
+
+    # differentiate each color channel on each direction
+    dfdx = cv2.filter2D(src=img, ddepth=-1, kernel=dx)
+    dfdy = cv2.filter2D(src=img, ddepth=-1, kernel=dy)
+
+    # combine edge results on each direction
+    out = np.maximum(dfdx, dfdy)
+    # out = np.sqrt( np.power(dfdx, 2) + np.power(dfdy, 2) )
+
+    # combine edge results on each channel
+    if combine_channels:
+        out = np.max(out, axis=2)
+
+    return out, dfdx, dfdy
 
 
 def detect_line(img, canny_thres1=50, 
