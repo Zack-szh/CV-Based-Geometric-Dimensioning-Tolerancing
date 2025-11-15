@@ -85,8 +85,6 @@ def detect_line(img, canny_thres1=50,
              ): 
     """The line detection pipeline"""
 
-    # the images are already loaded in as grayscale
-
     # step 1: canny edge detections
     edges = cv2.Canny(img, canny_thres1, canny_thres2)
 
