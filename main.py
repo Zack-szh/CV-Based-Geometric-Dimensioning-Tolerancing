@@ -37,7 +37,7 @@ def load_img_from_folder(folder_path, batch_size = 10):
     return data
 
 
-def detect_edges(img, derv_len=1):
+def detect_edges(img, derv_len=1, use_sobel=False):
     """ detects edges in the input image (img); returns superscored edge map and directional derivatives.
         img can have 1 channel (greyscale) or 3 channels (color)
     """
@@ -48,21 +48,26 @@ def detect_edges(img, derv_len=1):
         combine_channels = False
         
     # define derivative filters
-    # dx = np.array([[-1, 1]])
-    # dy = np.array([[1, -1]]).T
-    ones = np.repeat(1, derv_len).reshape(1, derv_len)
-    dx = np.concatenate([-ones, ones], axis=1)
-    dy = np.concatenate([ones, -ones], axis=1).T
+    if use_sobel:
+        dfdx = cv2.Sobel(img, ddepth=-1, dx=1, dy=0, ksize=2*derv_len+1)
+        dfdy = cv2.Sobel(img, ddepth=-1, dx=0, dy=1, ksize=2*derv_len+1)
+    else:  # use simple derivative
+        # dx = np.array([[-1, 1]])
+        # dy = np.array([[1, -1]]).T
+        ones = np.repeat(1, derv_len).reshape(1, derv_len)
+        dx = np.concatenate([-ones, ones], axis=1)
+        dy = np.concatenate([ones, -ones], axis=1).T
 
-    # differentiate each color channel on each axis on both directions
-    # on both directions (pos & neg) b/c we are dealing w/ uint8
-    dfdx_pos = cv2.filter2D(src=img, ddepth=-1, kernel=dx)
-    dfdy_pos = cv2.filter2D(src=img, ddepth=-1, kernel=dy)
-    dfdx_neg = cv2.filter2D(src=img, ddepth=-1, kernel=np.flip(dx))
-    dfdy_neg = cv2.filter2D(src=img, ddepth=-1, kernel=np.flip(dy))
-    # merge pos & neg results on each axis
-    dfdx = np.maximum(dfdx_pos, dfdx_neg)
-    dfdy = np.maximum(dfdy_pos, dfdy_neg)
+        # differentiate each color channel on each axis on both directions
+        # on both directions (pos & neg) b/c we are dealing w/ uint8
+        dfdx_pos = cv2.filter2D(src=img, ddepth=-1, kernel=dx)
+        dfdy_pos = cv2.filter2D(src=img, ddepth=-1, kernel=dy)
+        dfdx_neg = cv2.filter2D(src=img, ddepth=-1, kernel=np.flip(dx))
+        dfdy_neg = cv2.filter2D(src=img, ddepth=-1, kernel=np.flip(dy))
+    
+        # merge pos & neg results on each axis
+        dfdx = np.maximum(dfdx_pos, dfdx_neg)
+        dfdy = np.maximum(dfdy_pos, dfdy_neg)
 
     # combine edge results on each direction
     out = np.maximum(dfdx, dfdy)
