@@ -106,20 +106,21 @@ def applyHoughTransform(image):
     else:
         img_gray = image
         base_for_drawing = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
-
     lines = detect_line(
         img_gray,
         canny_thres1=100,
         canny_thres2=200,
         rho=1,
-        theta=np.pi/180,
+        theta=main.np.pi/180,
         hough_thres=200,
         min_line_len=10,
         max_line_gap=1e6,
     )
 
     img_with_lines = draw_lines(base_for_drawing, lines, color=(0, 0, 255), thickness=2)
+
     img_rgb = cv2.cvtColor(img_with_lines, cv2.COLOR_BGR2RGB)
+
     return img_rgb
 
 def find_lines(input, canny=False, probabilistic=True):
@@ -168,17 +169,22 @@ def find_lines(input, canny=False, probabilistic=True):
         print(f"found {len(lines)} lines")
 
     base = cv2.cvtColor(input, cv2.COLOR_GRAY2BGR)
-    input_n_lines = main.draw_lines(base, lines)
+    input_n_lines = draw_lines(base, lines)
     return cv2.cvtColor(input_n_lines, cv2.COLOR_BGR2RGB)
 
-def find_circles(input, blur=True, thresh=45, dp=1.2):
+def find_circles(input, blur=True, thresh=40, dp=1.2):
     img = input.copy()
+
+    if img.ndim == 3:
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
     if blur:
-        img = cv2.medianBlur(img, 5)
+        before = img.copy()
+        img = cv2.medianBlur(img, 17)
+        diff = cv2.absdiff(before, img)
+        print("Blur difference mean:", diff.mean())
 
-
-    dp = dp
-    minDist = 60
+    minDist = 20
     param1 = 100
     param2 = thresh
     minRadius = 5
@@ -195,24 +201,26 @@ def find_circles(input, blur=True, thresh=45, dp=1.2):
         maxRadius=maxRadius
     )
 
+    base = cv2.cvtColor(input, cv2.COLOR_BGR2RGB)  # for plotting later
+
     if circles is not None:
         circles = np.round(circles[0, :]).astype("int")
-        print(f"found {len(circles)} circles")
-    else:
-        circles = []
-        print("found 0 circles")
+        for (x, y, r) in circles:
+            cv2.circle(base, (x, y), r, (0, 255, 0), 2)
+            cv2.circle(base, (x, y), 2, (0, 0, 255), 3)
 
-    base = cv2.cvtColor(input, cv2.COLOR_GRAY2BGR)
-    for (x, y, r) in circles:
-        cv2.circle(base, (x, y), r, (0, 255, 0), 2)
-        cv2.circle(base, (x, y), 2, (0, 0, 255), 9)
-
-    return cv2.cvtColor(base, cv2.COLOR_BGR2RGB)
-
+    return base
 
 def find_circles_contours(input, filter=30):
-    img = cv2.GaussianBlur(input, (5,5), 0)
-    edges = cv2.Canny(img, 60, 150)
+    img = input.copy()
+
+    if img.ndim == 3:
+        gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
+    else:
+        gray = img
+
+    blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+    edges = cv2.Canny(blurred, 60, 150)
 
     contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
@@ -224,7 +232,6 @@ def find_circles_contours(input, filter=30):
 
         (x, y), r = cv2.minEnclosingCircle(c)
         circle_area = np.pi * r * r
-
         circularity = area / circle_area
 
         if 0 < circularity < 3:
@@ -232,12 +239,15 @@ def find_circles_contours(input, filter=30):
 
     print(f"found {len(circles)} circles")
 
-    base = cv2.cvtColor(input, cv2.COLOR_GRAY2BGR)
+    base = input.copy()
+    if base.ndim == 2:
+        base = cv2.cvtColor(base, cv2.COLOR_GRAY2RGB)
+
     for (x, y, r) in circles:
         cv2.circle(base, (x, y), r, (0, 255, 0), 2)
         cv2.circle(base, (x, y), 2, (0, 0, 255), 9)
 
-    return cv2.cvtColor(base, cv2.COLOR_BGR2RGB)
+    return base
 
 def find_circle_ransac(input_gray):
     if len(input_gray.shape) == 3:
@@ -290,28 +300,16 @@ def sample_files(folder_path, n):
 
     return random.sample(files, n)
     
-def show_images_from_files(files, title, fn, cols=4, figsize=(12, 10)):
+def show_images_from_files(files, title, image_proc, cols=4, figsize=(12, 10)):
     rows = math.ceil(len(files) / cols)
     plt.figure(figsize=figsize)
 
     for i, file in enumerate(files):
-        img_bgr = cv2.imread(file)
-        if img_bgr is None:
-            continue  # or raise
-
-        # apply your processing in BGR/gray space
-        img = fn(img_bgr)
-
-        # handle gray vs color for display
-        if img.ndim == 2:
-            disp = img
-            cmap = "gray"
-        else:
-            disp = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-            cmap = None
-
+        img = cv2.imread(file)
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        img = image_proc(img)
         plt.subplot(rows, cols, i + 1)
-        plt.imshow(disp, cmap=cmap)
+        plt.imshow(img)
         plt.title(title)
         plt.axis("off")
 
