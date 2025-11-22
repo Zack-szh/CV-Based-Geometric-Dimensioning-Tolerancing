@@ -19,49 +19,6 @@ class DETECTION(Enum):
 # ---------- DETECTION METHODS
 # ----------------------------------------------------------------------------------------------------
 
-def detect_edges(img, derv_len=1, use_sobel=False):
-    """ detects edges in the input image (img); returns superscored edge map and directional derivatives.
-        img can have 1 channel (greyscale) or 3 channels (color)
-    """
-    # check input dimensions
-    shape = img.shape
-    combine_channels = True     # flag: perform edge combination along channels
-    if len(shape) == 2:     # grey scale
-        combine_channels = False
-        
-    # define derivative filters
-    if use_sobel:
-        dfdx = cv2.Sobel(img, ddepth=-1, dx=1, dy=0, ksize=2*derv_len+1)
-        dfdy = cv2.Sobel(img, ddepth=-1, dx=0, dy=1, ksize=2*derv_len+1)
-    else:  # use simple derivative
-        # dx = np.array([[-1, 1]])
-        # dy = np.array([[1, -1]]).T
-        ones = np.repeat(1, derv_len).reshape(1, derv_len)
-        dx = np.concatenate([-ones, ones], axis=1)
-        dy = np.concatenate([ones, -ones], axis=1).T
-
-        # differentiate each color channel on each axis on both directions
-        # on both directions (pos & neg) b/c we are dealing w/ uint8
-        dfdx_pos = cv2.filter2D(src=img, ddepth=-1, kernel=dx)
-        dfdy_pos = cv2.filter2D(src=img, ddepth=-1, kernel=dy)
-        dfdx_neg = cv2.filter2D(src=img, ddepth=-1, kernel=np.flip(dx))
-        dfdy_neg = cv2.filter2D(src=img, ddepth=-1, kernel=np.flip(dy))
-    
-        # merge pos & neg results on each axis
-        dfdx = np.maximum(dfdx_pos, dfdx_neg)
-        dfdy = np.maximum(dfdy_pos, dfdy_neg)
-
-    # combine edge results on each direction
-    out = np.maximum(dfdx, dfdy)
-    # out = np.sqrt( np.power(dfdx, 2) + np.power(dfdy, 2) )
-
-    # combine edge results on each channel
-    if combine_channels:
-        out = np.max(out, axis=2)
-
-    return out, dfdx, dfdy
-
-
 def detect_line(img, canny_thres1=50, 
              canny_thres2=150, 
              rho=1, 
@@ -90,14 +47,6 @@ def draw_lines(img, lines, color=(0, 0, 255), thickness=2):
         cv2.line(img_out, (x1, y1), (x2, y2), color, thickness)
 
     return img_out
-
-def applyGradient(image):
-    sigma = 30
-    thrs = 97
-    img_part1_gb = cv2.GaussianBlur(image, ksize=(sigma+1, sigma+1), sigmaX=sigma, sigmaY=sigma)
-    edges_crude, Ix, Iy = detect_edges(img_part1_gb, derv_len=sigma//10)
-    edges_crude = np.where(edges_crude >= np.percentile(edges_crude, thrs), 255, 0).astype("uint8")
-    return edges_crude
 
 def applyHoughTransform(image):
     if image.ndim == 3:
