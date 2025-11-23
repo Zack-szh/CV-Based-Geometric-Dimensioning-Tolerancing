@@ -1,6 +1,6 @@
 import numpy as np
 import cv2
-
+from scipy import fft
 
 
 # ----------------------------------------------------------------------------------------------------
@@ -8,7 +8,8 @@ import cv2
 # ----------------------------------------------------------------------------------------------------
 
 def gradient(img, derv_len=1, use_sobel=False):
-    """ takes gradient of the input image (img); returns superscored edge map and directional derivatives.
+    """ takes gradient of the input image (img) using "step masks" of step length derv_len; 
+        superscores gradient accross each color channel and each direction to get final gradient;
         img can have 1 channel (greyscale) or 3 channels (color)
     """
     # check input dimensions
@@ -49,6 +50,64 @@ def gradient(img, derv_len=1, use_sobel=False):
 
     return out, dfdx, dfdy
 
+
+def fft_LPF(img, r_cutoff=0.95, verbose=False):
+    """ performs low pass filtering by: 1. taking fft on img (size: H,W), 2. applying a rectangular binary mask in freq domain, 
+        and 3. inverse fft the masked result back into position domain to get filtered image.
+        r_cutoff (float in [0,1]) defines the size of the rectangular freq domain mask 
+        (height = H*r_cutoff, width = W*r_cutoff, centered at origin of freq domain);
+        only components inside the mask are kept  
+    """
+
+    # get image size
+    if img.ndim == 3:   # colored image (BGR)
+        H,W,C = img.shape
+    else:   # single channel (grey scale)
+        H,W = img.shape
+        C = 1
+
+    # find center coord
+    hc = (H-1)/2.
+    wc = (W-1)/2.
+
+    # 2D fourier transform
+    f_img = fft.fft2(img)
+
+    # shift 0-freq to center of f_img
+    f_img = fft.fftshift(f_img)
+
+    # define frequency domain mask  
+    # find cutoff boundaries
+    wl = int(wc * r_cutoff)
+    wu = int(wc * (2 - r_cutoff)) +1
+    hl = int(hc * r_cutoff)
+    hu = int(hc * (2 - r_cutoff)) +1
+    # build mask
+    mask = np.zeros_like(img)
+    mask[hl:hu+1 , wl:wu+1] = 1
+
+    # # TEST: guass blur mask
+    # k=100
+    # mask = cv2.GaussianBlur(mask, ksize=(2*k+1,2*k+1), sigmaX=k, sigmaY=k)
+
+    if verbose:
+        print(f"input image size: W,H = ({W}, {H})")
+        print(f"cutoff limits: width:({wl}, {wu}), height:({hl}, {hu})")
+
+    # apply mask
+    f_filtered = f_img * mask
+    # f_filtered = f_img
+
+    if verbose:
+        # TODO: show freq domain filtered results
+        pass
+
+    # inverse 2D fourier transform
+    filtered = fft.ifft2(f_filtered)
+    # filtered = fft.fftshift(filtered)
+    filtered = np.abs(filtered).astype(np.uint8)
+
+    return filtered
 
 
 # ----------------------------------------------------------------------------------------------------
