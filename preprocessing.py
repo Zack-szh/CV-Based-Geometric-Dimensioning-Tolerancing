@@ -10,6 +10,17 @@ from scipy import fft
 def get_edges(original):
     """ converts original (raw) GRAYSCALE image into edge map
     """
+
+    """ Try this function with these params for Hough circle detection:
+        method=cv2.HOUGH_GRADIENT,
+        dp=1,
+        param1=100,
+        param2=40,
+        minDist=2*10,
+        minRadius=10,
+        maxRadius=0
+    """
+
     # 1. LPF: gauss blur
     k = 15
     gauss = cv2.GaussianBlur(original, ksize=(2*k+1,2*k+1), sigmaX=2*k, sigmaY=2*k)
