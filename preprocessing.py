@@ -7,6 +7,25 @@ from scipy import fft
 # ---------- KEY FUNCTIONS
 # ----------------------------------------------------------------------------------------------------
 
+def get_edges(original):
+    """ converts original (raw) GRAYSCALE image into edge map
+    """
+    # 1. LPF: gauss blur
+    k = 15
+    gauss = cv2.GaussianBlur(original, ksize=(2*k+1,2*k+1), sigmaX=2*k, sigmaY=2*k)
+    # 2. edge finding: gradient
+    grad,_,_ = gradient(gauss)
+    # 3. refinement
+    # threshold
+    p = 90
+    thrs = np.where(grad > np.percentile(grad, p), 255, 0).astype(np.uint8)
+    # erode
+    k = 5
+    eroded = cv2.erode(thrs, np.ones((k, k)))
+
+    return eroded
+
+
 def gradient(img, derv_len=1, use_sobel=False):
     """ takes gradient of the input image (img) using "step masks" of step length derv_len; 
         superscores gradient accross each color channel and each direction to get final gradient;
