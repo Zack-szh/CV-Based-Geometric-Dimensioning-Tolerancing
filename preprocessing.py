@@ -61,7 +61,7 @@ def crop(img, Z=4):
     Zh = Z//2   # Z is the zoom factor
     img = img[H*(Zh-1)//Z : H*(Zh+1)//Z , W*(Zh-1)//Z : W*(Zh+1)//Z]
     # convert to RGB
-    img = main.cv2.cvtColor(img, main.cv2.COLOR_BGR2RGB)
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     return img
 
 def applyGradient(image):
@@ -74,7 +74,7 @@ def applyGradient(image):
 
 def getEdgesMasked(img):
     # get fine edges (org image, 1-step gradient)
-    edges_fine, Ix, Iy = pp.gradient(img, derv_len=1)
+    edges_fine, Ix, Iy = gradient(img, derv_len=1)
     # show_edge_results(img, edges_fine, Ix, Iy)
 
     # gauss blur img
@@ -83,7 +83,7 @@ def getEdgesMasked(img):
     # take large-step gradient
     step = sigma//10
     step = step if step>0 else 1
-    edges_crude, Ix, Iy = pp.gradient(img_part1_gb, derv_len=sigma//10)
+    edges_crude, Ix, Iy = gradient(img_part1_gb, derv_len=sigma//10)
     # threshold
     thrs = 95   # percentile above which to keep
     edges_crude = np.where(edges_crude>=np.percentile(edges_crude, thrs), 1, 0)
