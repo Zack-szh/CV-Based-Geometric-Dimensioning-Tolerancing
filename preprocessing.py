@@ -31,7 +31,7 @@ def get_edges(original):
     p = 90
     thrs = np.where(grad > np.percentile(grad, p), 255, 0).astype(np.uint8)
     # erode
-    k = 5
+    k = 4
     eroded = cv2.erode(thrs, np.ones((k, k)))
 
     return eroded
