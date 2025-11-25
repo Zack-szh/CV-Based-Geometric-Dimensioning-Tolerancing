@@ -202,7 +202,9 @@ def find_circle_ransac(input_gray):
     if len(input_gray.shape) == 3:
         input_gray = cv2.cvtColor(input_gray, cv2.COLOR_BGR2GRAY)
 
-    edges = cv2.Canny(input_gray, 80, 200)
+    gray = cv2.GaussianBlur(input_gray, (11, 11), 0)
+    gray = cv2.equalizeHist(gray)
+    edges = cv2.Canny(gray, 30, 100)    
     ys, xs = np.nonzero(edges)
     points = np.column_stack([xs, ys])
 
@@ -221,10 +223,11 @@ def find_circle_ransac(input_gray):
     xc, yc, r = model.params
 
     # 3. Draw circle
-    base = cv2.cvtColor(input_gray, cv2.COLOR_GRAY2BGR)
+    base = cv2.cvtColor(edges, cv2.COLOR_GRAY2BGR)
     cv2.circle(base, (int(xc), int(yc)), int(r), (0,255,0), 2)
 
     return cv2.cvtColor(base, cv2.COLOR_BGR2RGB)
+
 
 # ----------------------------------------------------------------------------------------------------
 # ---------- DISPLAY METHODS

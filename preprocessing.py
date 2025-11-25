@@ -1,6 +1,6 @@
 import numpy as np
 import cv2
-
+import main
 
 
 # ----------------------------------------------------------------------------------------------------
@@ -64,6 +64,43 @@ def crop(img, Z=4):
     img = main.cv2.cvtColor(img, main.cv2.COLOR_BGR2RGB)
     return img
 
+def crop_largest_structure(img, min_area=500, margin=10):
+    image = img.copy()
+
+    if len(image.shape) == 3:
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    else:
+        gray = image
+
+    gray_blur = cv2.GaussianBlur(gray, (5, 5), 0)
+
+    edges = cv2.Canny(gray_blur, 50, 150)
+
+    kernel = np.ones((3, 3), np.uint8)
+    edges_dilated = cv2.dilate(edges, kernel, iterations=2)
+
+    contours, _ = cv2.findContours(edges_dilated, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    if not contours:
+        h, w = image.shape[:2]
+        return image, (0, 0, w, h)
+
+    largest = max(contours, key=cv2.contourArea)
+    area = cv2.contourArea(largest)
+    if area < min_area:
+        h, w = image.shape[:2]
+        return image, (0, 0, w, h)
+
+    x, y, w, h = cv2.boundingRect(largest)
+
+    x = max(x - margin, 0)
+    y = max(y - margin, 0)
+    x2 = min(x + w + 2 * margin, image.shape[1])
+    y2 = min(y + h + 2 * margin, image.shape[0])
+
+    cropped = image[y:y2, x:x2]
+    return cropped, (x, y, x2 - x, y2 - y)
+
 def applyGradient(image):
     sigma = 30
     thrs = 97
@@ -74,7 +111,7 @@ def applyGradient(image):
 
 def getEdgesMasked(img):
     # get fine edges (org image, 1-step gradient)
-    edges_fine, Ix, Iy = pp.gradient(img, derv_len=1)
+    edges_fine, Ix, Iy = gradient(img, derv_len=1)
     # show_edge_results(img, edges_fine, Ix, Iy)
 
     # gauss blur img
@@ -83,7 +120,7 @@ def getEdgesMasked(img):
     # take large-step gradient
     step = sigma//10
     step = step if step>0 else 1
-    edges_crude, Ix, Iy = pp.gradient(img_part1_gb, derv_len=sigma//10)
+    edges_crude, Ix, Iy = gradient(img_part1_gb, derv_len=sigma//10)
     # threshold
     thrs = 95   # percentile above which to keep
     edges_crude = np.where(edges_crude>=np.percentile(edges_crude, thrs), 1, 0)
