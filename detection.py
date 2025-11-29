@@ -252,21 +252,26 @@ def sample_files(folder_path, n):
 
     return random.sample(files, n)
     
-def show_images_from_files(files, title, image_proc, cols=4, figsize=(12, 10)):
+def show_images_from_files(files, title, image_proc=None, cols=4, figsize=(12, 10)):
     rows = math.ceil(len(files) / cols)
     plt.figure(figsize=figsize)
 
+    imgs = []
     for i, file in enumerate(files):
         img = cv2.imread(file)
+        imgs.append(img)
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        img = image_proc(img)
+        if image_proc is not None:
+            img = image_proc(img)
         plt.subplot(rows, cols, i + 1)
         plt.imshow(img)
-        plt.title(title)
+        plt.title(title[i])
         plt.axis("off")
 
     plt.tight_layout()
     plt.show()
+
+    return imgs
 
 def subsample_technique(technique, title, image_proc = lambda img: img, generated_num = 3, realistic_num=1):
     base_path = os.getcwd()
