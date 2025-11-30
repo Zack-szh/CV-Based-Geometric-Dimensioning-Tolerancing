@@ -38,9 +38,9 @@ def get_edges(original, return_interm=False):
 
     # return results
     if return_interm:
-        return eroded
-    else:
         return eroded, [gauss, grad, thrs]
+    else:
+        return eroded
 
 
 def gradient(img, derv_len=1, use_sobel=False):
