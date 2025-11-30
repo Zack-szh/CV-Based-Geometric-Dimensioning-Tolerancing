@@ -8,8 +8,9 @@ from scipy import fft
 # ---------- KEY FUNCTIONS
 # ----------------------------------------------------------------------------------------------------
 
-def get_edges(original):
+def get_edges(original, return_interm=False):
     """ converts original (raw) GRAYSCALE image into edge map
+        return_interm: flag: if true, returns intermediate images during filtering process in a tuple
     """
 
     """ Try this function with these params for Hough circle detection:
@@ -35,7 +36,11 @@ def get_edges(original):
     k = 4
     eroded = cv2.erode(thrs, np.ones((k, k)))
 
-    return eroded
+    # return results
+    if return_interm:
+        return eroded
+    else:
+        return eroded, [gauss, grad, thrs]
 
 
 def gradient(img, derv_len=1, use_sobel=False):
