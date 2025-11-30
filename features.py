@@ -283,7 +283,7 @@ def edge_points_from_image(image: np.ndarray):
     # Prefer if present
     if hasattr(pp, "get_edges"):
         try:
-            edges = pp.get_edges(image)
+            edges,_,_ = pp.get_edges(image)
         except Exception:
             edges = None
     # Fallback to masked edges
