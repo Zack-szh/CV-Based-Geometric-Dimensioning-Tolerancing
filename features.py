@@ -19,7 +19,7 @@ class Line:
         self.ref = tuple(map(float, ref))
         self.pts: np.ndarray = np.zeros((0, 2), dtype=float)
         self.pts_idx: np.ndarray = np.zeros((0,), dtype=int)
-        # TUNE THESE PARAMETERS
+        # TODO: TUNE THESE PARAMETERS
         # max_perp_dist: max distance from line segment to edge point to be considered a match
         # require_on_segment: if True, only consider points that project onto the segment
         self.params = {
@@ -99,6 +99,9 @@ class Circle:
     - params: tunable thresholds (e.g. max_rad_diff)
     """
 
+    # TODO: TUNE THESE PARAMETERS
+    # max_rad_diff: max difference in radius from circle to edge point to be considered a match
+    # (others can be added later)
     def __init__(self, ref: Tuple[float, float, float], **params):
         self.ref = tuple(map(float, ref))
         self.pts: np.ndarray = np.zeros((0, 2), dtype=float)
@@ -157,22 +160,40 @@ def match_points_to_lines(detected_lines: List[Tuple[float, float, float, float]
 
     `match_params` are passed to each Line.match_pts call (can include thresholds).
     """
+    # allow caller to require a minimum line length (pixels)
+    min_length = float(match_params.pop("min_length", 20.0))
     features: List[Line] = []
+    print(f"[match_points_to_lines] detected_lines: {len(detected_lines)}, min_length: {min_length}")
     for ln in detected_lines:
-        L = Line(ln)
-        L.match_pts(edge_points, **match_params)
+        x0, y0, x1, y1 = map(float, ln)
+        length = float(np.hypot(x1 - x0, y1 - y0))
+        if length < min_length:
+            # skip small lines
+            continue
+        L = Line((x0, y0, x1, y1))
+        matched_pts, matched_idx = L.match_pts(edge_points, **match_params)
+        print(f"  line ref=({x0:.1f},{y0:.1f},{x1:.1f},{y1:.1f}) len={length:.1f} matched={matched_idx.size}")
         features.append(L)
+    print(f"[match_points_to_lines] returning features: {len(features)}")
     return features
 
 
 def match_points_to_circles(detected_circles: List[Tuple[float, float, float]],
                             edge_points: np.ndarray,
                             **match_params) -> List[Circle]:
+    # allow caller to require a minimum radius (pixels)
+    min_radius = float(match_params.pop("min_radius", 20.0))
     features: List[Circle] = []
+    print(f"[match_points_to_circles] detected_circles: {len(detected_circles)}, min_radius: {min_radius}")
     for c in detected_circles:
-        C = Circle(c)
-        C.match_pts(edge_points, **match_params)
+        xc, yc, r = map(float, c)
+        if r < min_radius:
+            continue
+        C = Circle((xc, yc, r))
+        matched_pts, matched_idx = C.match_pts(edge_points, **match_params)
+        print(f"  circle ref=({xc:.1f},{yc:.1f},r={r:.1f}) matched={matched_idx.size}")
         features.append(C)
+    print(f"[match_points_to_circles] returning features: {len(features)}")
     return features
 
 
@@ -182,8 +203,7 @@ def visualize_matches(image: np.ndarray,
                       figsize: Tuple[int, int] = (8, 8),
                       title: Optional[str] = None,
                       show: bool = True):
-    """Visualize matched points and primitives on an image using matplotlib.
-
+    """Visualize matched points on an image using matplotlib.
     - `image` is an HxWxC image (RGB or grayscale). It will be shown as-is.
     - `features` is a list of `Line` and/or `Circle` objects (instances defined above).
     The function plots the image, draws each primitive (line segment or circle), and
@@ -204,6 +224,12 @@ def visualize_matches(image: np.ndarray,
     ci = 0
 
     for f in features:
+        # debug-print each feature's ref
+        try:
+            ref = getattr(f, "ref", None)
+            print(f"[visualize_matches] drawing feature ref={ref}")
+        except Exception:
+            pass
         col = colors[ci % len(colors)]
         ci += 1
         if isinstance(f, Line):
