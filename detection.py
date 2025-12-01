@@ -121,6 +121,26 @@ def find_lines(input, canny=False, probabilistic=True):
     input_n_lines = draw_lines(base, lines)
     return cv2.cvtColor(input_n_lines, cv2.COLOR_BGR2RGB)
 
+
+def find_lines_HT(edges, return_img=False):
+    """ find lines from edge map using Hough Transform; 
+        consider integrating into detection.py
+    """
+    
+    # Detect lines using HT
+    lines = cv2.HoughLinesP(edges,
+                        1, np.pi/180,
+                        threshold=500,    # threshold effectiveness influenced by thickness of lines, but not sensitive
+                        minLineLength=10,
+                        maxLineGap=1e6)
+
+    # Check for no lines found
+    if lines is None:
+        return []
+    else:
+        return [tuple(line[0]) for line in lines]
+
+
 def find_circles(input, blur=True, thresh=40, dp=1.2):
     img = input.copy()
 
@@ -160,6 +180,42 @@ def find_circles(input, blur=True, thresh=40, dp=1.2):
 
     return base
 
+
+def find_circles_HT(edges, return_img=False):
+    """ find circles from edge map using Hough Transform; 
+        consider integrating into detection.py
+    """
+
+    # Detect circles using HT
+    r_min = 1
+    circles = cv2.HoughCircles(edges,
+                            method=cv2.HOUGH_GRADIENT,      #Try the ALT method, where "circle completness" is considered
+                            dp=1,
+                            param1=100,
+                            param2=40,     # param2 effectiveness influenced by completeness & thickness of circles; pretty sensitve, and seem especially sensitive to salt & pepper noise
+                            minDist=2*r_min,
+                            minRadius=r_min,
+                            maxRadius=1000)
+    
+    # Detect circles using HT
+    r_min = 1
+    circles = cv2.HoughCircles(edges,
+                            method=cv2.HOUGH_GRADIENT_ALT,
+                            dp=1,
+                            param1=100,
+                            param2=0.3,
+                            minDist=2*r_min,
+                            minRadius=r_min,
+                            maxRadius=1000)
+
+    # Check for no circles found
+    if circles is None:
+        return []
+    else:
+        circles = np.round(circles[0, :]).astype("int")
+        return [(c[0], c[1], c[2]) for c in circles]
+
+
 def find_circles_contours(input, filter=30):
     img = input.copy()
 
@@ -197,6 +253,7 @@ def find_circles_contours(input, filter=30):
         cv2.circle(base, (x, y), 2, (0, 0, 255), 9)
 
     return base
+
 
 def find_circle_ransac(input_gray):
     if len(input_gray.shape) == 3:
