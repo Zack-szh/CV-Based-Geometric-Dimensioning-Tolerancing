@@ -7,6 +7,7 @@ import random
 import math
 from skimage.measure import ransac, CircleModel
 
+    
 
 def measure_line(line, conversion_ratio=1.0): 
     """
