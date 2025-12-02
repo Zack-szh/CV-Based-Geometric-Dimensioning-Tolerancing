@@ -43,6 +43,39 @@ def get_edges(original, return_interm=False):
         return eroded
 
 
+def get_edges_2(original, return_interm=False):
+    """ converts original (raw) GRAYSCALE image into edge map
+        return_interm: flag: if true, returns intermediate images during filtering process in a tuple
+    """
+
+    # 1. LPF: FFT
+    # r_cutoff = 0.95
+    # lpf = fft_LPF(original, r_cutoff=r_cutoff, verbose=True)
+    # 1. LPF: gauss blur
+    k = 15
+    lpf = cv2.GaussianBlur(original, ksize=(2*k+1,2*k+1), sigmaX=2*k, sigmaY=2*k)
+    # 2. edge finding: gradient
+    grad,_,_ = gradient(lpf)
+    # 3. refinement
+    # threshold
+    p = 90
+    thrs = np.where(grad > np.percentile(grad, p), 255, 0).astype(np.uint8)
+    # erode
+    k = 4
+    eroded = cv2.erode(thrs, np.ones((k, k)))
+    # Canny
+    _img = eroded
+    p1 = np.percentile(_img, 10)
+    p2 = np.percentile(_img, 90)
+    canny = cv2.Canny(_img, threshold1=p1, threshold2=p2)
+
+    # return results
+    if return_interm:
+        return canny, [lpf, grad, thrs, eroded]
+    else:
+        return canny
+
+
 def gradient(img, derv_len=1, use_sobel=False):
     """ takes gradient of the input image (img) using "step masks" of step length derv_len; 
         superscores gradient accross each color channel and each direction to get final gradient;
@@ -111,6 +144,7 @@ def fft_LPF(img, r_cutoff=0.95, verbose=False):
 
     # shift 0-freq to center of f_img
     f_img = fft.fftshift(f_img)
+    # f_img = fft.ifftshift(f_img)
 
     # define frequency domain mask  
     # find cutoff boundaries
@@ -139,8 +173,9 @@ def fft_LPF(img, r_cutoff=0.95, verbose=False):
         pass
 
     # inverse 2D fourier transform
+    f_filtered = fft.ifftshift(f_filtered)
     filtered = fft.ifft2(f_filtered)
-    # filtered = fft.fftshift(filtered)
+    # filtered = fft.ifftshift(filtered)
     filtered = np.abs(filtered).astype(np.uint8)
 
     return filtered
