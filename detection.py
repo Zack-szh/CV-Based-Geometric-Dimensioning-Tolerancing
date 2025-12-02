@@ -143,7 +143,7 @@ def find_lines_HT(edges, return_img=False):
 
 def find_circles(input,
                  blur=True,
-                 thresh=40,
+                 thresh=60, #was 40 for raw image
                  dp=1.2,
                  minDist=20,
                  minRadius=20,
