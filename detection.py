@@ -141,23 +141,31 @@ def find_lines_HT(edges, return_img=False):
         return [tuple(line[0]) for line in lines]
 
 
-def find_circles(input, blur=True, thresh=40, dp=1.2):
+def find_circles(input,
+                 blur=True,
+                 thresh=40,
+                 dp=1.2,
+                 minDist=20,
+                 minRadius=20,
+                 maxRadius=0,
+                 param1=100,
+                 param2=None,
+                 return_type: str = "image"):
+    """Detect circles using cv2.HoughCircles.
+
+    Parameters mirror the commonly tuned Hough params. By default, returns an
+    RGB image with circles drawn (backward compatible). Set return_type="circles"
+    to return a list of (x, y, r) integer tuples suitable for downstream matching.
+    """
     img = input.copy()
 
     if img.ndim == 3:
         img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
     if blur:
-        before = img.copy()
         img = cv2.medianBlur(img, 17)
-        diff = cv2.absdiff(before, img)
-        print("Blur difference mean:", diff.mean())
 
-    minDist = 20
-    param1 = 100
-    param2 = thresh
-    minRadius = 5
-    maxRadius = 0
+    p2 = thresh if param2 is None else param2
 
     circles = cv2.HoughCircles(
         img,
@@ -165,15 +173,25 @@ def find_circles(input, blur=True, thresh=40, dp=1.2):
         dp=dp,
         minDist=minDist,
         param1=param1,
-        param2=param2,
+        param2=p2,
         minRadius=minRadius,
         maxRadius=maxRadius
     )
 
-    base = cv2.cvtColor(input, cv2.COLOR_BGR2RGB)  # for plotting later
+    if return_type == "circles":
+        if circles is None:
+            return []
+        circles = np.round(circles[0, :]).astype(int)
+        return [tuple(c) for c in circles]
+
+    # default: return an RGB image with circles drawn (legacy behavior)
+    base = input.copy()
+    if base.ndim == 2:
+        base = cv2.cvtColor(base, cv2.COLOR_GRAY2BGR)
+    base = cv2.cvtColor(base, cv2.COLOR_BGR2RGB)
 
     if circles is not None:
-        circles = np.round(circles[0, :]).astype("int")
+        circles = np.round(circles[0, :]).astype(int)
         for (x, y, r) in circles:
             cv2.circle(base, (x, y), r, (0, 255, 0), 2)
             cv2.circle(base, (x, y), 2, (0, 0, 255), 3)
