@@ -150,7 +150,7 @@ def find_circles(input,
                  maxRadius=0,
                  param1=100,
                  param2=None,
-                 return_type: str = "image"):
+                 return_type: str = "circles"):
     """Detect circles using cv2.HoughCircles.
 
     Parameters mirror the commonly tuned Hough params. By default, returns an
@@ -199,21 +199,28 @@ def find_circles(input,
     return base
 
 
-def find_circles_HT(edges, return_img=False):
+def find_circles_HT(edges, R_expect=None):
     """ find circles from edge map using Hough Transform; 
-        consider integrating into detection.py
+        radius to look for can be specified by R_expect
     """
+    # Check if there is an expected radius
+    if R_expect is not None:
+        r_min = R_expect - 5
+        r_min = max(r_min, 0)
+        r_max = R_expect + 5
+    else:
+        r_min = 1
+        r_max = 1000
 
-    # Detect circles using HT
-    r_min = 1
-    circles = cv2.HoughCircles(edges,
-                            method=cv2.HOUGH_GRADIENT,      #Try the ALT method, where "circle completness" is considered
-                            dp=1,
-                            param1=100,
-                            param2=40,     # param2 effectiveness influenced by completeness & thickness of circles; pretty sensitve, and seem especially sensitive to salt & pepper noise
-                            minDist=2*r_min,
-                            minRadius=r_min,
-                            maxRadius=1000)
+    # # Detect circles using HT
+    # circles = cv2.HoughCircles(edges,
+    #                         method=cv2.HOUGH_GRADIENT,      #Try the ALT method, where "circle completness" is considered
+    #                         dp=1,
+    #                         param1=100,
+    #                         param2=40,     # param2 effectiveness influenced by completeness & thickness of circles; pretty sensitve, and seem especially sensitive to salt & pepper noise
+    #                         minDist=2*r_min,
+    #                         minRadius=r_min,
+    #                         maxRadius=r_max)
     
     # Detect circles using HT
     r_min = 1
@@ -221,10 +228,10 @@ def find_circles_HT(edges, return_img=False):
                             method=cv2.HOUGH_GRADIENT_ALT,
                             dp=1,
                             param1=100,
-                            param2=0.3,
+                            param2=0.6,
                             minDist=2*r_min,
                             minRadius=r_min,
-                            maxRadius=1000)
+                            maxRadius=r_max)
 
     # Check for no circles found
     if circles is None:
