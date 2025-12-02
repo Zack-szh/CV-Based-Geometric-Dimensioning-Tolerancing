@@ -153,18 +153,23 @@ def get_edge_points(img, edges, return_interm=False):
     # 1. take gradient
     grad,_,_ = gradient(img)
 
-    # 2. inflate edge map (edges)
-    k = 4
-    mask = cv2.dilate(edges, np.ones((k,k)))
+    # 1+. threshold gradient
+    p = 90
+    thrs = np.where(grad > np.percentile(grad, p), grad, 0)
+
+    # # 2. inflate edge map (edges) to use as mask
+    # k = 4
+    # mask = cv2.dilate(edges, np.ones((k,k)))
+    mask = edges
 
     # 3. use mask to filter for edge points
-    masked = np.where(mask>0, grad, 0)
+    masked = np.where(mask>0, thrs, 0)
     ys, xs = np.nonzero(masked)
     edge_points = np.column_stack((xs, ys))
 
     # return results
     if return_interm:
-        return edge_points, (grad, mask, masked)
+        return edge_points, (grad, thrs, mask, masked)
     else:
         return edge_points
     
