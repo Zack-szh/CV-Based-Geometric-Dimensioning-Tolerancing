@@ -146,6 +146,29 @@ def fft_LPF(img, r_cutoff=0.95, verbose=False):
     return filtered
 
 
+def get_edge_points(img, edges, return_interm=False):
+    """ take gradient of original image, filters for points near detected edges, 
+        and returns identified edge points
+    """
+    # 1. take gradient
+    grad,_,_ = gradient(img)
+
+    # 2. inflate edge map (edges)
+    k = 4
+    mask = cv2.dilate(edges, np.ones((k,k)))
+
+    # 3. use mask to filter for edge points
+    masked = np.where(mask>0, grad, 0)
+    ys, xs = np.nonzero(masked)
+    edge_points = np.column_stack((xs, ys))
+
+    # return results
+    if return_interm:
+        return edge_points, (grad, mask, masked)
+    else:
+        return edge_points
+    
+
 # ----------------------------------------------------------------------------------------------------
 # ---------- ARCHIVED (rough coded functions for quick testing; kept to not break things)
 # ----------------------------------------------------------------------------------------------------
