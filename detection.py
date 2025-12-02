@@ -199,37 +199,43 @@ def find_circles(input,
     return base
 
 
-def find_circles_HT(edges, R_expect=None):
+def find_circles_HT(edges, R_expect=(100, 33, 133, 167)):
     """ find circles from edge map using Hough Transform; 
-        radius to look for can be specified by R_expect
+        radius to look for can be specified by R_expect, which can be either int or tuple of int
     """
     # Check if there is an expected radius
     if R_expect is not None:
-        r_min = R_expect - 5
-        r_min = max(r_min, 0)
-        r_max = R_expect + 5
+        if type(R_expect) == int:     # If a single radius is specified
+            print(R_expect)
+            r_min = R_expect - 20
+            r_min = max(r_min, 0)
+            r_max = R_expect + 20
+        elif type(R_expect) == tuple:     # If multiple radii are specified
+            circles = []
+            for r in R_expect:
+                circles.extend(find_circles_HT(edges, R_expect=r))
+            return circles
     else:
         r_min = 1
         r_max = 1000
 
-    # # Detect circles using HT
+    # Detect circles using HT
     # circles = cv2.HoughCircles(edges,
-    #                         method=cv2.HOUGH_GRADIENT,      #Try the ALT method, where "circle completness" is considered
+    #                         method=cv2.HOUGH_GRADIENT,
     #                         dp=1,
     #                         param1=100,
-    #                         param2=40,     # param2 effectiveness influenced by completeness & thickness of circles; pretty sensitve, and seem especially sensitive to salt & pepper noise
-    #                         minDist=2*r_min,
+    #                         param2=20,     # param2 effectiveness influenced by completeness & thickness of circles; pretty sensitve, and seem especially sensitive to salt & pepper noise
+    #                         minDist=2,
     #                         minRadius=r_min,
     #                         maxRadius=r_max)
     
     # Detect circles using HT
-    r_min = 1
     circles = cv2.HoughCircles(edges,
                             method=cv2.HOUGH_GRADIENT_ALT,
                             dp=1,
                             param1=100,
-                            param2=0.6,
-                            minDist=2*r_min,
+                            param2=0.3,
+                            minDist=2,
                             minRadius=r_min,
                             maxRadius=r_max)
 
