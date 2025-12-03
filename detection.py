@@ -199,17 +199,17 @@ def find_circles(input,
     return base
 
 
-def find_circles_HT(edges, R_expect=(100, 33, 133, 167)):
+def find_circles_HT(edges, R_expect=(100, 133, 167)):   # use (100, 35, 133, 167) to find servo mount points
     """ find circles from edge map using Hough Transform; 
         radius to look for can be specified by R_expect, which can be either int or tuple of int
     """
     # Check if there is an expected radius
     if R_expect is not None:
         if type(R_expect) == int:     # If a single radius is specified
-            print(R_expect)
-            r_min = R_expect - 20
-            r_min = max(r_min, 0)
-            r_max = R_expect + 20
+            # print(R_expect)
+            r_min = R_expect - 10
+            r_min = max(r_min, 1)
+            r_max = R_expect + 10
         elif type(R_expect) == tuple:     # If multiple radii are specified
             circles = []
             for r in R_expect:
@@ -234,7 +234,7 @@ def find_circles_HT(edges, R_expect=(100, 33, 133, 167)):
                             method=cv2.HOUGH_GRADIENT_ALT,
                             dp=1,
                             param1=100,
-                            param2=0.3,
+                            param2=0.3, # was 0.3
                             minDist=2,
                             minRadius=r_min,
                             maxRadius=r_max)
@@ -243,8 +243,7 @@ def find_circles_HT(edges, R_expect=(100, 33, 133, 167)):
     if circles is None:
         return []
     else:
-        circles = np.round(circles[0, :]).astype("int")
-        return [(c[0], c[1], c[2]) for c in circles]
+        return [(int(c[0]), int(c[1]), int(c[2])) for c in circles[0]]
 
 
 def find_circles_contours(input, filter=30):

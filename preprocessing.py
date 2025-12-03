@@ -33,14 +33,17 @@ def get_edges(original, return_interm=False):
     p = 90
     thrs = np.where(grad > np.percentile(grad, p), 255, 0).astype(np.uint8)
     # erode
-    k = 3
+    k = 4   # was 3
     eroded = cv2.erode(thrs, np.ones((k, k)))
+    # median filter
+    k = 7  # 7 to filter out small salt-n-peper noises; 21 to remove large grains, but may degrade small true circles
+    median = cv2.medianBlur(eroded, k)
 
     # return results
     if return_interm:
-        return eroded, [gauss, grad, thrs]
+        return median, [gauss, grad, thrs, eroded]
     else:
-        return eroded
+        return median
 
 
 def get_edges_2(original, return_interm=False):
