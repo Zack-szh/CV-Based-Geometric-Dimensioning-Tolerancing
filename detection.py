@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import random
 import math
 from skimage.measure import ransac, CircleModel
+from sklearn.cluster import DBSCAN
 
 from enum import Enum, auto
 
@@ -199,7 +200,7 @@ def find_circles(input,
     return base
 
 
-def find_circles_HT(edges, R_expect=33):   # use (100, 33, 133, 167) to find servo mount points
+def find_circles_HT(edges, R_expect=(100,133,167)):   # use (100, 33, 133, 167) to find servo mount points
     """ find circles from edge map using Hough Transform; 
         radius to look for can be specified by R_expect, which can be either int or tuple of int
     """
@@ -314,6 +315,199 @@ def find_circle_ransac(input_gray):
     cv2.circle(base, (int(xc), int(yc)), int(r), (0,255,0), 2)
 
     return cv2.cvtColor(base, cv2.COLOR_BGR2RGB)
+
+# ----------------------------------------------------------------------------------------------------
+# ---------- FILTRATION METHODS
+# ----------------------------------------------------------------------------------------------------
+
+def filter_lines(lines, eps_pos=10.0, eps_len=20.0, eps_angle=0.1, min_samples=2):
+    if not lines:
+        return []
+
+    cpfs = []
+    for (x1, y1, x2, y2) in lines:
+        x0 = (x1 + x2) / 2.0
+        y0 = (y1 + y2) / 2.0
+        L  = math.hypot(x2 - x1, y2 - y1)
+        t  = math.atan2(y2 - y1, x2 - x1)
+        if t < 0:
+            t += math.pi
+        cpfs.append((x0, y0, L, t))
+
+    cpfs = np.array(cpfs, dtype=float)
+
+    # Scale features for DBSCAN
+    X = np.empty_like(cpfs)
+    X[:, 0] = cpfs[:, 0] / eps_pos
+    X[:, 1] = cpfs[:, 1] / eps_pos
+    X[:, 2] = cpfs[:, 2] / eps_len
+    X[:, 3] = cpfs[:, 3] / eps_angle
+
+    db = DBSCAN(eps=3.0, min_samples=min_samples)
+    labels = db.fit_predict(X)
+
+    filtered = []
+    unique_labels = set(labels)
+    for lbl in unique_labels:
+        if lbl == -1:
+            continue
+
+        cluster_cpfs = cpfs[labels == lbl]
+        if cluster_cpfs.size == 0:
+            continue
+
+        x0 = np.median(cluster_cpfs[:, 0])
+        y0 = np.median(cluster_cpfs[:, 1])
+        L  = np.max(cluster_cpfs[:, 2])
+        t  = np.median(cluster_cpfs[:, 3])
+
+        # Convert back to (x1, y1, x2, y2)
+        dx = (L / 2.0) * math.cos(t)
+        dy = (L / 2.0) * math.sin(t)
+
+        x1 = int(round(x0 - dx))
+        y1 = int(round(y0 - dy))
+        x2 = int(round(x0 + dx))
+        y2 = int(round(y0 + dy))
+
+        filtered.append((x1, y1, x2, y2))
+
+    return filtered
+
+
+def filter_circles(edges, circles, height, width,
+                   radial_tolerance=1, # Assumed thickness tolerance of an edge 
+                   grad_mag_thresh=6.0, # Magnitude threshold for gradient difference
+                   angle_cos_thresh=0.7, # Threshold from orthogonal to test 
+                   min_strength=0.2, # Minimum required strength to allow a cluster (0-1)
+                   num_samples=180): # Num point samples drawn along the cricle
+
+    canvas = np.zeros((height, width), dtype=np.uint8)
+
+    # Normalize circles to a Python list of tuples
+    if circles is None:
+        circles = []
+    elif isinstance(circles, np.ndarray):
+        circles = circles.tolist()
+
+    if hasattr(circles, '__len__') and len(circles) == 0:
+        return [], canvas
+
+    # Edge Gradients
+    gx = cv2.Sobel(edges, cv2.CV_32F, 1, 0, ksize=3)
+    gy = cv2.Sobel(edges, cv2.CV_32F, 0, 1, ksize=3)
+
+    circles = [(int(x), int(y), int(r)) for (x, y, r) in circles if r > 0]
+    n = len(circles)
+    if n == 0:
+        return [], canvas
+
+    # Group circles by containment w/ union find (borrowed implementation)
+
+    parent = list(range(n))
+
+    def find(i):
+        while parent[i] != i:
+            parent[i] = parent[parent[i]]
+            i = parent[i]
+        return i
+
+    def union(i, j):
+        ri, rj = find(i), find(j)
+        if ri != rj:
+            parent[rj] = ri
+
+    def contains(ci, cj):
+        xi, yi, ri = ci
+        xj, yj, rj = cj
+        dx = xj - xi
+        dy = yj - yi
+        d = math.hypot(dx, dy)
+        # return d + rj <= ri
+        return d <= ri
+
+    for i in range(n):
+        for j in range(i + 1, n):
+            ci = circles[i]
+            cj = circles[j]
+            if contains(ci, cj) or contains(cj, ci):
+                union(i, j)
+
+    groups = {}
+    for i in range(n):
+        root = find(i)
+        groups.setdefault(root, []).append(i)
+
+    # Strength scoring using edge gradients
+    def circle_strength(circle):
+        x, y, r = circle
+        if r <= 0:
+            return 0.0
+
+        thetas = np.linspace(0, 2 * np.pi, num_samples, endpoint=False) # Sampling points
+        good = 0 # Num points that show gradient along drawn circle that is orthogonal to diameter
+        total = len(thetas)
+
+        h, w = edges.shape[:2]
+
+        for theta in thetas:
+            ct = math.cos(theta)
+            st = math.sin(theta)
+
+            for dr in range(-radial_tolerance, radial_tolerance + 1):
+                rr = r + dr # Adding tolerance to assume some thickness in edge map / gradient
+                if rr <= 0:
+                    continue
+                # Get point x and point y given x,y radius and angle of approach 
+                px = int(round(x + rr * ct)) 
+                py = int(round(y + rr * st))
+
+                if px < 0 or px >= w or py < 0 or py >= h:
+                    continue
+
+                gx_val = float(gx[py, px])
+                gy_val = float(gy[py, px])
+                mag = math.hypot(gx_val, gy_val)
+
+                if mag < grad_mag_thresh:
+                    continue
+
+                # Normalize and get sobel vector (with some additional numbers to prevent divide by zero)
+                ux, uy = gx_val / (mag + 1e-6), gy_val / (mag + 1e-6)
+
+                # Get angle of vector w/ relation to circle with dot product
+                cos_angle = abs(ux * ct + uy * st)
+
+                if cos_angle >= angle_cos_thresh:
+                    good += 1
+                    break
+
+        return good / total
+
+    kept_circles = []
+
+    for root, idxs in groups.items():
+        # Evaluate strength for each circle in this group
+        best_circle = None
+        best_score = -1.0
+
+        for idx in idxs:
+            c = circles[idx]
+            score = circle_strength(c)
+            if score > best_score:
+                best_score = score
+                best_circle = c
+
+        # Keep strongest circle if it meets threshold
+        if best_circle is not None and best_score >= min_strength:
+            kept_circles.append(best_circle)
+
+    # Draw kept circles on canvas for debugging / visualization
+    for x, y, r in kept_circles:
+        cv2.circle(canvas, (x, y), r, 255, thickness=1)
+
+    return kept_circles, canvas
+
 
 
 # ----------------------------------------------------------------------------------------------------
