@@ -89,6 +89,59 @@ class Line:
         perp = np.linalg.norm(self.pts - proj, axis=1)
         self.straightness = float(np.sqrt(np.mean(perp ** 2)))
 
+    def measure_length(self, conversion_ratio: float = 1.0) -> float:
+        """
+        Calculates the real-world length of the line segment.
+        """
+        pixel_length = np.linalg.norm(self._v)
+        return float(pixel_length * conversion_ratio)
+
+    def measure_straightness(self, conversion_ratio: float = 1.0) -> float:
+        """
+        Calculates straightness as the RMS (Root Mean Square) error of 
+        the perpendicular distances of matched points to the line.
+        
+        Returns 0.0 if no points are matched.
+        """
+        if self.pts.size == 0:
+            return 0.0
+            
+        # 1. Project matched points onto the infinite line defined by p0->p1
+        w = self.pts - self._p0
+        t = np.dot(w, self._v) / self._len2
+        proj = self._p0 + np.outer(t, self._v)
+        
+        # 2. Calculate perpendicular distances
+        perp_vec = self.pts - proj
+        perp_dists = np.linalg.norm(perp_vec, axis=1)
+        
+        # 3. Calculate RMS (Root Mean Square)
+        # RMS = sqrt(mean(errors^2))
+        rms_pixel = np.sqrt(np.mean(perp_dists ** 2))
+        
+        return float(rms_pixel * conversion_ratio)
+    
+    def draw_line_measurement(self, img): 
+        import cv2
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        font_scale = 1.5
+        color = (255, 255, 0)  
+        thickness = 5
+        output = img.copy()
+        unit = "mm"
+
+        for x1, y1, x2, y2 in [self.ref]: 
+            # for lines, we draw the length at the midpoint 
+            mid_x = int((x1 + x2) / 2)
+            mid_y = int((y1 + y2) / 2)
+            length = self.measure_length()
+            text = f"{length:.2f} {unit}"
+
+            cv2.line(output, (int(x1), int(y1)), (int(x2), int(y2)), color, thickness)
+            cv2.putText(output, text, (mid_x + 10, mid_y + 10), font, font_scale, color, thickness, cv2.LINE_AA)
+
+        return output   
+
 
 class Circle:
     """Represents a detected circle and stores matched edge points.
@@ -152,6 +205,42 @@ class Circle:
         """Alias for now to compute radial spread"""
         self.calc_dims()
 
+    def measure_radius(self, conversion_ratio: float = 1.0) -> float:
+        """
+        Calculates the real-world radius of the circle.
+        """
+        return float(self.radius * conversion_ratio)
+
+    def measure_circularity(self, conversion_ratio: float = 1.0) -> float:
+        """
+        Calculates circularity as the Standard Deviation of the radial distances
+        of the matched points.
+        """
+        if self.pts.shape[0] < 2:
+            return 0.0
+
+        dists = np.linalg.norm(self.pts - self.center, axis=1)
+        
+        radial_std = np.std(dists)
+        
+        return float(radial_std * conversion_ratio)
+    
+    def draw_circle_measurement(self, img): 
+        import cv2
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        font_scale = 1.5
+        color = (255, 255, 0)  
+        thickness = 5
+        output = img.copy()
+        unit = "mm"
+
+        for x0, y0, radius in [self.ref]: 
+            text = f"r={radius:.2f} {unit}"
+
+            cv2.circle(output, (int(x0), int(y0)), int(radius), color, thickness)
+            cv2.putText(output, text, (int(x0) + 10, int(y0) + 10), font, font_scale, color, thickness, cv2.LINE_AA)
+
+        return output
 
 def match_points_to_lines(detected_lines: List[Tuple[float, float, float, float]],
                           edge_points: np.ndarray,
