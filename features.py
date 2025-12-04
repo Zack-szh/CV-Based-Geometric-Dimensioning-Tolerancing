@@ -33,6 +33,7 @@ class Line:
         self._p1 = np.array([x1, y1], dtype=float)
         self._v = self._p1 - self._p0
         self._len2 = float(np.dot(self._v, self._v)) if np.any(self._v) else 1.0
+        self.converted_length: Optional[float] = None
 
     def match_pts(self, edge_points: np.ndarray, **override_params) -> Tuple[np.ndarray, np.ndarray]:
         """Match `edge_points` (Nx2) to this line segment.
@@ -129,16 +130,16 @@ class Line:
         thickness = 5
         output = img.copy()
         unit = "mm"
+        x1, y1, x2, y2 = self.ref
 
-        for x1, y1, x2, y2 in [self.ref]: 
-            # for lines, we draw the length at the midpoint 
-            mid_x = int((x1 + x2) / 2)
-            mid_y = int((y1 + y2) / 2)
-            length = self.measure_length()
-            text = f"{length:.2f} {unit}"
+        # for lines, we draw the length at the midpoint 
+        mid_x = int((x1 + x2) / 2)
+        mid_y = int((y1 + y2) / 2)
+        #length = self.measure_length()
+        text = f"{self.converted_length:.2f} {unit}"
 
-            cv2.line(output, (int(x1), int(y1)), (int(x2), int(y2)), color, thickness)
-            cv2.putText(output, text, (mid_x + 10, mid_y + 10), font, font_scale, color, thickness, cv2.LINE_AA)
+        cv2.line(output, (int(x1), int(y1)), (int(x2), int(y2)), color, thickness)
+        cv2.putText(output, text, (mid_x + 10, mid_y + 10), font, font_scale, color, thickness, cv2.LINE_AA)
 
         return output   
 
@@ -165,6 +166,7 @@ class Circle:
         xc, yc, r = self.ref
         self.center = np.array([xc, yc], dtype=float)
         self.radius = float(r)
+        self.converted_radius: Optional[float] = None
 
     def match_pts(self, edge_points: np.ndarray, **override_params) -> Tuple[np.ndarray, np.ndarray]:
         """Match `edge_points` (Nx2) to this circle.
@@ -233,12 +235,12 @@ class Circle:
         thickness = 5
         output = img.copy()
         unit = "mm"
+        xc, yc, r = self.ref
 
-        for x0, y0, radius in [self.ref]: 
-            text = f"r={radius:.2f} {unit}"
+        text = f"r={self.converted_radius:.2f} {unit}"
 
-            cv2.circle(output, (int(x0), int(y0)), int(radius), color, thickness)
-            cv2.putText(output, text, (int(x0) + 10, int(y0) + 10), font, font_scale, color, thickness, cv2.LINE_AA)
+        cv2.circle(output, (int(xc), int(yc)), int(self.converted_radius), color, thickness)
+        cv2.putText(output, text, (int(xc) + 10, int(yc) + 10), font, font_scale, color, thickness, cv2.LINE_AA)
 
         return output
 
