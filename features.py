@@ -121,20 +121,18 @@ class Line:
         
         return float(rms_pixel * conversion_ratio)
     
-    def draw_line_measurement(self, img): 
+    def draw_line_measurement(self, img, conversion_ratio:float=1., unit = "mm", font_scale = 1.5): 
         import cv2
         font = cv2.FONT_HERSHEY_SIMPLEX
-        font_scale = 1.5
         color = (255, 255, 0)  
         thickness = 5
         output = img.copy()
-        unit = "mm"
 
         for x1, y1, x2, y2 in [self.ref]: 
             # for lines, we draw the length at the midpoint 
             mid_x = int((x1 + x2) / 2)
             mid_y = int((y1 + y2) / 2)
-            length = self.measure_length()
+            length = self.measure_length(conversion_ratio=conversion_ratio)
             text = f"{length:.2f} {unit}"
 
             cv2.line(output, (int(x1), int(y1)), (int(x2), int(y2)), color, thickness)
@@ -225,17 +223,15 @@ class Circle:
         
         return float(radial_std * conversion_ratio)
     
-    def draw_circle_measurement(self, img): 
+    def draw_circle_measurement(self, img, conversion_ratio:float=1., unit = "mm", font_scale = 1.5): 
         import cv2
         font = cv2.FONT_HERSHEY_SIMPLEX
-        font_scale = 1.5
         color = (255, 255, 0)  
         thickness = 5
         output = img.copy()
-        unit = "mm"
 
         for x0, y0, radius in [self.ref]: 
-            text = f"r={radius:.2f} {unit}"
+            text = f"r={radius*conversion_ratio:.2f} {unit}"
 
             cv2.circle(output, (int(x0), int(y0)), int(radius), color, thickness)
             cv2.putText(output, text, (int(x0) + 10, int(y0) + 10), font, font_scale, color, thickness, cv2.LINE_AA)
