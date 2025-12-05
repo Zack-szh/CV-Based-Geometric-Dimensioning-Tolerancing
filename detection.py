@@ -200,7 +200,7 @@ def find_circles(input,
     return base
 
 
-def find_circles_HT(edges, R_expect=(100,133,167)):   # use (100, 33, 133, 167) to find servo mount points
+def find_circles_HT(edges, R_expect=(33)):   # use (100, 33, 133, 167) to find servo mount points
     """ find circles from edge map using Hough Transform; 
         radius to look for can be specified by R_expect, which can be either int or tuple of int
     """
@@ -211,7 +211,7 @@ def find_circles_HT(edges, R_expect=(100,133,167)):   # use (100, 33, 133, 167) 
             r_min = R_expect - 10
             r_min = max(r_min, 1)
             r_max = R_expect + 10
-        elif type(R_expect) == tuple:     # If multiple radii are specified
+        elif type(R_expect) == tuple or type(R_expect) == list:     # If multiple radii are specified
             circles = []
             for r in R_expect:
                 circles.extend(find_circles_HT(edges, R_expect=r))
