@@ -132,7 +132,7 @@ def find_lines_HT(edges, return_img=False):
     lines = cv2.HoughLinesP(edges,
                         1, np.pi/180,
                         threshold=500,    # threshold effectiveness influenced by thickness of lines, but not sensitive
-                        minLineLength=10,
+                        minLineLength=5,    # was 10
                         maxLineGap=1e6)
 
     # Check for no lines found
